@@ -1,23 +1,31 @@
 #include <glad/glad.h>
 #include <GLFW/glfw3.h>
-#include <iostream>
+#include <glm/vec2.hpp>
 
-int g_windowSizeX = 640;
-int g_windowSizeY = 480;
+#include <iostream>
+#include <chrono>
+
+#include "Game/Game.h"
+#include "Resources/ResourceManager.h"
+
+glm::vec2 g_windowSize(640, 480);
+Game g_game(g_windowSize);
+
 
 void glfwWindowSizeCallback(GLFWwindow* pWindow, int width, int height) {
-    g_windowSizeX = width;
-    g_windowSizeY = height;
-    glViewport(0, 0, g_windowSizeX, g_windowSizeY);
+    g_windowSize.x = width;
+    g_windowSize.y = height;
+    glViewport(0, 0, g_windowSize.x, g_windowSize.y);
 }
 
 void glfwKeyCallback(GLFWwindow* pWindow, int key, int scancode, int action, int mode) {
     if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS) {
         glfwSetWindowShouldClose(pWindow, GL_TRUE);
     }
+    g_game.setKey(key, action);
 }
 
-int main(void)
+int main(int argc, char** argv)
 {
     /* Initialize the library */
     if (!glfwInit()) {
@@ -30,7 +38,7 @@ int main(void)
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
     /* Create a windowed mode window and its OpenGL context */
-    GLFWwindow* pWindow = glfwCreateWindow(g_windowSizeX, g_windowSizeY, "BattleCity", nullptr, nullptr);
+    GLFWwindow* pWindow = glfwCreateWindow(g_windowSize.x, g_windowSize.y, "BattleCity", nullptr, nullptr);
     if (!pWindow)
     {
         std::cout << "glfwCreateWindow failed" << std::endl;
@@ -51,22 +59,36 @@ int main(void)
 	
     std::cout << "Renderer: " << glGetString(GL_RENDERER) << std::endl;
     std::cout << "OpenGL version: " << glGetString(GL_VERSION) << std::endl;
-
+    std::cout << "Vendor: " << glGetString(GL_VENDOR) << std::endl;
 	std::cout << "OpenGL " << GLVersion.major << "." << GLVersion.minor << std::endl;
 	
-	glClearColor(0, 1, 1, 1);
-	
-    /* Loop until the user closes the window */
-    while (!glfwWindowShouldClose(pWindow))
+	glClearColor(0, 0, 0, 1);
+    
     {
-        /* Render here */
-        glClear(GL_COLOR_BUFFER_BIT);
+        ResourceManager::setExecutablePath(argv[0]);
+        g_game.init();
+        auto lastTime = std::chrono::high_resolution_clock::now();
 
-        /* Swap front and back buffers */
-        glfwSwapBuffers(pWindow);
+        /* Loop until the user closes the window */
+        while (!glfwWindowShouldClose(pWindow))
+        {
+            auto currentTime = std::chrono::high_resolution_clock::now();
+            uint64_t duration = std::chrono::duration_cast<std::chrono::nanoseconds>(currentTime - lastTime).count();
+            lastTime = currentTime;
 
-        /* Poll for and process events */
-        glfwPollEvents();
+            g_game.update(duration);
+            
+            /* Render here */
+            glClear(GL_COLOR_BUFFER_BIT);
+
+            g_game.render();
+            /* Swap front and back buffers */
+            glfwSwapBuffers(pWindow);
+
+            /* Poll for and process events */
+            glfwPollEvents();
+        }
+        ResourceManager::unloadAllResources();
     }
 
     glfwTerminate();
